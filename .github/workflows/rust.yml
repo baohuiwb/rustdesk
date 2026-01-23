@@ -1,0 +1,38 @@
+name: Build Custom RustDesk Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-pc-windows-msvc
+    
+    - name: Install dependencies
+      run: |
+        choco install llvm -y
+        
+    - name: Build RustDesk
+      run: |
+        cargo build --release --target x86_64-pc-windows-msvc
+      env:
+        RUSTFLAGS: "-C target-cpu=native"
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: rustdesk-custom-windows
+        path: target/x86_64-pc-windows-msvc/release/rustdesk.exe
+        retention-days: 7
