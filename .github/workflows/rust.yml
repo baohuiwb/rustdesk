@@ -15,18 +15,10 @@ jobs:
       with:
         submodules: recursive
     
-    - name: Install VCPKG
-      run: |
-        git clone https://github.com/microsoft/vcpkg
-        .\vcpkg\bootstrap-vcpkg.bat
-        
-    - name: Install dependencies via VCPKG
-      run: |
-        $env:VCPKG_ROOT = "${{ github.workspace }}\vcpkg"
-        .\vcpkg\vcpkg install opus:x64-windows-static
-        .\vcpkg\vcpkg install libvpx:x64-windows-static
-        .\vcpkg\vcpkg install libyuv:x64-windows-static
-        .\vcpkg\vcpkg integrate install
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -37,12 +29,39 @@ jobs:
       run: |
         choco install llvm -y
         
-    - name: Build RustDesk
+    - name: Install NASM
       run: |
-        $env:VCPKG_ROOT = "${{ github.workspace }}\vcpkg"
-        cargo build --release --target x86_64-pc-windows-msvc
+        choco install nasm -y
+        
+    - name: Setup VCPKG
+      run: |
+        git clone https://github.com/microsoft/vcpkg C:\vcpkg
+        C:\vcpkg\bootstrap-vcpkg.bat
+        echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+        
+    - name: Cache VCPKG packages
+      uses: actions/cache@v3
+      with:
+        path: C:\vcpkg\installed
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
+        
+    - name: Install VCPKG dependencies
+      run: |
+        C:\vcpkg\vcpkg install opus:x64-windows-static
+        C:\vcpkg\vcpkg install libvpx:x64-windows-static
+        C:\vcpkg\vcpkg install libyuv:x64-windows-static
+        C:\vcpkg\vcpkg install aom:x64-windows-static
+        C:\vcpkg\vcpkg integrate install
       env:
         VCPKG_DEFAULT_TRIPLET: x64-windows-static
+        
+    - name: Build RustDesk
+      run: |
+        $env:VCPKG_ROOT = "C:\vcpkg"
+        cargo build --release --target x86_64-pc-windows-msvc --features inline
+      env:
+        VCPKG_DEFAULT_TRIPLET: x64-windows-static
+        LIBCLANG_PATH: C:\Program Files\LLVM\bin
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
