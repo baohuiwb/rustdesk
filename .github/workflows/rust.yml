@@ -1,9 +1,13 @@
-name: Build RustDesk Minimal Dependencies
+name: Build RustDesk Complete Fix
 
 on:
   workflow_dispatch:
   push:
     branches: [ master, main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
   build-windows:
@@ -36,7 +40,7 @@ jobs:
         if (Test-Path "vcpkg.json") {
           $vcpkgJson = Get-Content "vcpkg.json" -Raw | ConvertFrom-Json
           
-          # 移除容易失败的依赖：opus, aom
+          # 移除 opus 和 aom
           if ($vcpkgJson.dependencies) {
             $vcpkgJson.dependencies = $vcpkgJson.dependencies | Where-Object { 
               $_ -ne "opus" -and 
@@ -46,25 +50,19 @@ jobs:
             }
           }
           
-          # 保存修改
           $vcpkgJson | ConvertTo-Json -Depth 10 | Set-Content "vcpkg.json" -Encoding UTF8
           
           Write-Host "=== Modified vcpkg.json ==="
           Get-Content "vcpkg.json"
         }
         
-    - name: Remove magnum-opus from Cargo.toml
+    - name: Remove magnum-opus from all Cargo.toml files
       run: |
         # 修改主 Cargo.toml
         $cargoToml = Get-Content "Cargo.toml" -Raw
-        
-        # 移除 magnum-opus 依赖
         $cargoToml = $cargoToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
-        
-        # 移除 feature 中的 magnum-opus 引用
         $cargoToml = $cargoToml -replace '"magnum-opus/[^"]*",?\s*', ''
         $cargoToml = $cargoToml -replace ',\s*\]', ']'
-        
         $cargoToml | Set-Content "Cargo.toml" -Encoding UTF8
         
         # 修改 libs/hbb_common/Cargo.toml
@@ -76,9 +74,16 @@ jobs:
           $hbbToml | Set-Content "libs/hbb_common/Cargo.toml" -Encoding UTF8
         }
         
+        # 修改 libs/scrap/Cargo.toml
+        if (Test-Path "libs/scrap/Cargo.toml") {
+          $scrapToml = Get-Content "libs/scrap/Cargo.toml" -Raw
+          $scrapToml = $scrapToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
+          $scrapToml = $scrapToml -replace '"magnum-opus/[^"]*",?\s*', ''
+          $scrapToml = $scrapToml -replace ',\s*\]', ']'
+          $scrapToml | Set-Content "libs/scrap/Cargo.toml" -Encoding UTF8
+        }
+        
         Write-Host "=== Cargo.toml modifications complete ==="
-        Write-Host "=== Checking for magnum-opus references ==="
-        Get-Content "Cargo.toml" | Select-String -Pattern "magnum-opus" -Context 1,1
         
     - name: Install VCPKG dependencies
       run: |
@@ -91,18 +96,38 @@ jobs:
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
         $env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
-        cargo build --release --target x86_64-pc-windows-msvc
+        
+        # 显示环境信息
+        Write-Host "=== Build Environment ==="
+        Write-Host "VCPKG_ROOT: $env:VCPKG_ROOT"
+        Write-Host "LIBCLANG_PATH: $env:LIBCLANG_PATH"
+        Write-Host "Rust version:"
+        rustc --version
+        cargo --version
+        
+        # 开始编译
+        Write-Host "=== Starting Build ==="
+        cargo build --release --target x86_64-pc-windows-msvc --verbose
       env:
         VCPKG_ROOT: C:\vcpkg
         LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        RUST_BACKTRACE: 1
         
     - name: Check build output
       run: |
         if (Test-Path "target/x86_64-pc-windows-msvc/release/rustdesk.exe") {
           $size = (Get-Item "target/x86_64-pc-windows-msvc/release/rustdesk.exe").Length
           Write-Host "✓ Build successful! rustdesk.exe size: $size bytes"
+          
+          # 列出所有生成的文件
+          Write-Host "=== Build artifacts ==="
+          Get-ChildItem "target/x86_64-pc-windows-msvc/release" -Filter "*.exe" | Format-Table Name, Length
         } else {
           Write-Host "✗ Build failed - rustdesk.exe not found"
+          Write-Host "=== Checking build directory ==="
+          if (Test-Path "target/x86_64-pc-windows-msvc/release") {
+            Get-ChildItem "target/x86_64-pc-windows-msvc/release" | Select-Object -First 20
+          }
           exit 1
         }
         
