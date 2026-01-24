@@ -15,12 +15,24 @@ jobs:
       with:
         submodules: recursive
     
+    - name: Install VCPKG
+      run: |
+        git clone https://github.com/microsoft/vcpkg
+        .\vcpkg\bootstrap-vcpkg.bat
+        echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
+        
+    - name: Install dependencies via VCPKG
+      run: |
+        .\vcpkg\vcpkg install opus:x64-windows-static-md
+        .\vcpkg\vcpkg install libvpx:x64-windows-static-md
+        .\vcpkg\vcpkg integrate install
+    
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: x86_64-pc-windows-msvc
     
-    - name: Install dependencies
+    - name: Install LLVM
       run: |
         choco install llvm -y
         
@@ -28,7 +40,7 @@ jobs:
       run: |
         cargo build --release --target x86_64-pc-windows-msvc
       env:
-        RUSTFLAGS: "-C target-cpu=native"
+        VCPKG_ROOT: ${{ github.workspace }}\vcpkg
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
