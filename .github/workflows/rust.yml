@@ -5,22 +5,11 @@ on:
   push:
     branches: [ master, main ]
 
-env:
-  CARGO_TERM_COLOR: always
-  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-
 jobs:
   build-windows:
     runs-on: windows-2022
     
     steps:
-    - name: Export GitHub Actions cache environment variables
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-          
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -31,25 +20,30 @@ jobs:
       with:
         targets: x86_64-pc-windows-msvc
     
-    - name: Setup vcpkg with caching
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgDirectory: C:\vcpkg
-        vcpkgGitCommitId: 'f7423ee180c4b7f40d43402c2feb3859161ef625'
-        
-    - name: Install vcpkg dependencies
-      run: |
-        $ErrorActionPreference = "Stop"
-        C:\vcpkg\vcpkg.exe install --triplet x64-windows-static libvpx libyuv opus aom
-        
-    - name: Install LLVM and Clang
+    - name: Install LLVM
       run: |
         choco install llvm -y
         
-    - name: Build
+    - name: Install NASM
+      run: |
+        choco install nasm -y
+        
+    - name: Setup VCPKG
+      run: |
+        git clone https://github.com/microsoft/vcpkg C:\vcpkg
+        cd C:\vcpkg
+        .\bootstrap-vcpkg.bat
+        
+    - name: Install dependencies
+      run: |
+        C:\vcpkg\vcpkg install libvpx:x64-windows-static
+        C:\vcpkg\vcpkg install libyuv:x64-windows-static
+        C:\vcpkg\vcpkg install opus:x64-windows-static
+        C:\vcpkg\vcpkg install aom:x64-windows-static
+        
+    - name: Build RustDesk
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
-        python3 res/inline-sciter.py
         cargo build --release --target x86_64-pc-windows-msvc
       env:
         VCPKG_ROOT: C:\vcpkg
