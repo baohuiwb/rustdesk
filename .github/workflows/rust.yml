@@ -57,17 +57,28 @@ jobs:
       run: |
         # 修改主 Cargo.toml
         $cargoToml = Get-Content "Cargo.toml" -Raw
+        
+        # 移除 magnum-opus 依赖
         $cargoToml = $cargoToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
+        
+        # 移除 feature 中的 magnum-opus 引用
+        $cargoToml = $cargoToml -replace '"magnum-opus/[^"]*",?\s*', ''
+        $cargoToml = $cargoToml -replace ',\s*\]', ']'
+        
         $cargoToml | Set-Content "Cargo.toml" -Encoding UTF8
         
         # 修改 libs/hbb_common/Cargo.toml
         if (Test-Path "libs/hbb_common/Cargo.toml") {
           $hbbToml = Get-Content "libs/hbb_common/Cargo.toml" -Raw
           $hbbToml = $hbbToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
+          $hbbToml = $hbbToml -replace '"magnum-opus/[^"]*",?\s*', ''
+          $hbbToml = $hbbToml -replace ',\s*\]', ']'
           $hbbToml | Set-Content "libs/hbb_common/Cargo.toml" -Encoding UTF8
         }
         
         Write-Host "=== Cargo.toml modifications complete ==="
+        Write-Host "=== Checking for magnum-opus references ==="
+        Get-Content "Cargo.toml" | Select-String -Pattern "magnum-opus" -Context 1,1
         
     - name: Install VCPKG dependencies
       run: |
