@@ -1,4 +1,4 @@
-name: Build RustDesk Remove Opus Dependency
+name: Build RustDesk Custom
 
 on:
   workflow_dispatch:
@@ -34,15 +34,29 @@ jobs:
         cd C:\vcpkg
         .\bootstrap-vcpkg.bat
         
-    - name: Install dependencies (without opus)
+    - name: Modify vcpkg.json to remove opus
       run: |
-        C:\vcpkg\vcpkg install libvpx:x64-windows-static
-        C:\vcpkg\vcpkg install libyuv:x64-windows-static
-        C:\vcpkg\vcpkg install aom:x64-windows-static
+        # 读取并修改 vcpkg.json，移除 opus 依赖
+        if (Test-Path "vcpkg.json") {
+          $vcpkgJson = Get-Content "vcpkg.json" -Raw | ConvertFrom-Json
+          
+          # 移除 opus 依赖
+          if ($vcpkgJson.dependencies) {
+            $vcpkgJson.dependencies = $vcpkgJson.dependencies | Where-Object { 
+              $_ -ne "opus" -and $_.name -ne "opus" 
+            }
+          }
+          
+          # 保存修改
+          $vcpkgJson | ConvertTo-Json -Depth 10 | Set-Content "vcpkg.json" -Encoding UTF8
+          
+          Write-Host "=== Modified vcpkg.json ==="
+          Get-Content "vcpkg.json"
+        }
         
-    - name: Remove magnum-opus dependency
+    - name: Remove magnum-opus from Cargo.toml
       run: |
-        # 修改 Cargo.toml，注释掉 magnum-opus 依赖
+        # 修改 Cargo.toml
         $cargoToml = Get-Content "Cargo.toml" -Raw
         $cargoToml = $cargoToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
         $cargoToml | Set-Content "Cargo.toml" -Encoding UTF8
@@ -54,9 +68,12 @@ jobs:
           $hbbToml | Set-Content "libs/hbb_common/Cargo.toml" -Encoding UTF8
         }
         
-        # 显示修改后的内容
-        Write-Host "=== Modified Cargo.toml ==="
-        Get-Content "Cargo.toml" | Select-String -Pattern "opus" -Context 2,2
+    - name: Install VCPKG dependencies
+      run: |
+        $env:VCPKG_ROOT = "C:\vcpkg"
+        C:\vcpkg\vcpkg install --triplet x64-windows-static
+      env:
+        VCPKG_ROOT: C:\vcpkg
         
     - name: Build RustDesk
       run: |
