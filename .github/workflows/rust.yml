@@ -1,4 +1,4 @@
-name: Build Custom RustDesk Windows
+name: Build RustDesk Remove Opus Dependency
 
 on:
   workflow_dispatch:
@@ -34,12 +34,29 @@ jobs:
         cd C:\vcpkg
         .\bootstrap-vcpkg.bat
         
-    - name: Install dependencies
+    - name: Install dependencies (without opus)
       run: |
         C:\vcpkg\vcpkg install libvpx:x64-windows-static
         C:\vcpkg\vcpkg install libyuv:x64-windows-static
-        C:\vcpkg\vcpkg install opus:x64-windows-static
         C:\vcpkg\vcpkg install aom:x64-windows-static
+        
+    - name: Remove magnum-opus dependency
+      run: |
+        # 修改 Cargo.toml，注释掉 magnum-opus 依赖
+        $cargoToml = Get-Content "Cargo.toml" -Raw
+        $cargoToml = $cargoToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
+        $cargoToml | Set-Content "Cargo.toml" -Encoding UTF8
+        
+        # 修改 libs/hbb_common/Cargo.toml
+        if (Test-Path "libs/hbb_common/Cargo.toml") {
+          $hbbToml = Get-Content "libs/hbb_common/Cargo.toml" -Raw
+          $hbbToml = $hbbToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
+          $hbbToml | Set-Content "libs/hbb_common/Cargo.toml" -Encoding UTF8
+        }
+        
+        # 显示修改后的内容
+        Write-Host "=== Modified Cargo.toml ==="
+        Get-Content "Cargo.toml" | Select-String -Pattern "opus" -Context 2,2
         
     - name: Build RustDesk
       run: |
