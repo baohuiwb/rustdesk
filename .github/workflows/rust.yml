@@ -1,4 +1,4 @@
-name: Build RustDesk Custom
+name: Build RustDesk Minimal Dependencies
 
 on:
   workflow_dispatch:
@@ -25,26 +25,24 @@ jobs:
         choco install llvm -y
       continue-on-error: true
         
-    - name: Install NASM (optional)
-      run: |
-        choco install nasm -y
-      continue-on-error: true
-        
     - name: Setup VCPKG
       run: |
         git clone https://github.com/microsoft/vcpkg C:\vcpkg
         cd C:\vcpkg
         .\bootstrap-vcpkg.bat
         
-    - name: Modify vcpkg.json to remove opus
+    - name: Modify vcpkg.json - remove problematic dependencies
       run: |
         if (Test-Path "vcpkg.json") {
           $vcpkgJson = Get-Content "vcpkg.json" -Raw | ConvertFrom-Json
           
-          # 移除 opus 依赖
+          # 移除容易失败的依赖：opus, aom
           if ($vcpkgJson.dependencies) {
             $vcpkgJson.dependencies = $vcpkgJson.dependencies | Where-Object { 
-              $_ -ne "opus" -and $_.name -ne "opus" 
+              $_ -ne "opus" -and 
+              $_ -ne "aom" -and 
+              $_.name -ne "opus" -and 
+              $_.name -ne "aom"
             }
           }
           
@@ -91,9 +89,9 @@ jobs:
       run: |
         if (Test-Path "target/x86_64-pc-windows-msvc/release/rustdesk.exe") {
           $size = (Get-Item "target/x86_64-pc-windows-msvc/release/rustdesk.exe").Length
-          Write-Host "Build successful! rustdesk.exe size: $size bytes"
+          Write-Host "✓ Build successful! rustdesk.exe size: $size bytes"
         } else {
-          Write-Host "Build failed - rustdesk.exe not found"
+          Write-Host "✗ Build failed - rustdesk.exe not found"
           exit 1
         }
         
