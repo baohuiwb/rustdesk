@@ -1,4 +1,4 @@
-name: Build RustDesk Complete Fix
+name: Build RustDesk Fix Include Paths
 
 on:
   workflow_dispatch:
@@ -51,9 +51,6 @@ jobs:
           }
           
           $vcpkgJson | ConvertTo-Json -Depth 10 | Set-Content "vcpkg.json" -Encoding UTF8
-          
-          Write-Host "=== Modified vcpkg.json ==="
-          Get-Content "vcpkg.json"
         }
         
     - name: Remove magnum-opus from all Cargo.toml files
@@ -83,8 +80,6 @@ jobs:
           $scrapToml | Set-Content "libs/scrap/Cargo.toml" -Encoding UTF8
         }
         
-        Write-Host "=== Cargo.toml modifications complete ==="
-        
     - name: Install VCPKG dependencies
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
@@ -92,42 +87,48 @@ jobs:
       env:
         VCPKG_ROOT: C:\vcpkg
         
+    - name: Fix VPX header file paths
+      run: |
+        # 修改 scrap 的 build.rs 或创建符号链接
+        $vcpkgInclude = "C:\vcpkg\installed\x64-windows-static\include"
+        
+        # 检查 vpx 头文件是否存在
+        if (Test-Path "$vcpkgInclude\vpx") {
+          Write-Host "✓ VPX headers found at: $vcpkgInclude\vpx"
+          Get-ChildItem "$vcpkgInclude\vpx" | Select-Object -First 5
+        } else {
+          Write-Host "✗ VPX headers not found!"
+        }
+        
     - name: Build RustDesk
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
         $env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
         
-        # 显示环境信息
+        # 设置包含路径环境变量
+        $vcpkgInclude = "C:\vcpkg\installed\x64-windows-static\include"
+        $env:CPLUS_INCLUDE_PATH = "$vcpkgInclude;$env:CPLUS_INCLUDE_PATH"
+        $env:C_INCLUDE_PATH = "$vcpkgInclude;$env:C_INCLUDE_PATH"
+        $env:BINDGEN_EXTRA_CLANG_ARGS = "-I$vcpkgInclude"
+        
         Write-Host "=== Build Environment ==="
         Write-Host "VCPKG_ROOT: $env:VCPKG_ROOT"
         Write-Host "LIBCLANG_PATH: $env:LIBCLANG_PATH"
-        Write-Host "Rust version:"
-        rustc --version
-        cargo --version
+        Write-Host "BINDGEN_EXTRA_CLANG_ARGS: $env:BINDGEN_EXTRA_CLANG_ARGS"
         
         # 开始编译
-        Write-Host "=== Starting Build ==="
-        cargo build --release --target x86_64-pc-windows-msvc --verbose
+        cargo build --release --target x86_64-pc-windows-msvc
       env:
         VCPKG_ROOT: C:\vcpkg
         LIBCLANG_PATH: C:\Program Files\LLVM\bin
-        RUST_BACKTRACE: 1
         
     - name: Check build output
       run: |
         if (Test-Path "target/x86_64-pc-windows-msvc/release/rustdesk.exe") {
           $size = (Get-Item "target/x86_64-pc-windows-msvc/release/rustdesk.exe").Length
           Write-Host "✓ Build successful! rustdesk.exe size: $size bytes"
-          
-          # 列出所有生成的文件
-          Write-Host "=== Build artifacts ==="
-          Get-ChildItem "target/x86_64-pc-windows-msvc/release" -Filter "*.exe" | Format-Table Name, Length
         } else {
           Write-Host "✗ Build failed - rustdesk.exe not found"
-          Write-Host "=== Checking build directory ==="
-          if (Test-Path "target/x86_64-pc-windows-msvc/release") {
-            Get-ChildItem "target/x86_64-pc-windows-msvc/release" | Select-Object -First 20
-          }
           exit 1
         }
         
