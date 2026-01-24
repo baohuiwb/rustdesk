@@ -23,10 +23,12 @@ jobs:
     - name: Install LLVM
       run: |
         choco install llvm -y
+      continue-on-error: true
         
-    - name: Install NASM
+    - name: Install NASM (optional)
       run: |
         choco install nasm -y
+      continue-on-error: true
         
     - name: Setup VCPKG
       run: |
@@ -36,7 +38,6 @@ jobs:
         
     - name: Modify vcpkg.json to remove opus
       run: |
-        # 读取并修改 vcpkg.json，移除 opus 依赖
         if (Test-Path "vcpkg.json") {
           $vcpkgJson = Get-Content "vcpkg.json" -Raw | ConvertFrom-Json
           
@@ -56,7 +57,7 @@ jobs:
         
     - name: Remove magnum-opus from Cargo.toml
       run: |
-        # 修改 Cargo.toml
+        # 修改主 Cargo.toml
         $cargoToml = Get-Content "Cargo.toml" -Raw
         $cargoToml = $cargoToml -replace '(?m)^magnum-opus\s*=.*$', '# magnum-opus = removed'
         $cargoToml | Set-Content "Cargo.toml" -Encoding UTF8
@@ -68,6 +69,8 @@ jobs:
           $hbbToml | Set-Content "libs/hbb_common/Cargo.toml" -Encoding UTF8
         }
         
+        Write-Host "=== Cargo.toml modifications complete ==="
+        
     - name: Install VCPKG dependencies
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
@@ -78,9 +81,21 @@ jobs:
     - name: Build RustDesk
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
+        $env:LIBCLANG_PATH = "C:\Program Files\LLVM\bin"
         cargo build --release --target x86_64-pc-windows-msvc
       env:
         VCPKG_ROOT: C:\vcpkg
+        LIBCLANG_PATH: C:\Program Files\LLVM\bin
+        
+    - name: Check build output
+      run: |
+        if (Test-Path "target/x86_64-pc-windows-msvc/release/rustdesk.exe") {
+          $size = (Get-Item "target/x86_64-pc-windows-msvc/release/rustdesk.exe").Length
+          Write-Host "Build successful! rustdesk.exe size: $size bytes"
+        } else {
+          Write-Host "Build failed - rustdesk.exe not found"
+          exit 1
+        }
         
     - name: Upload artifact
       uses: actions/upload-artifact@v4
