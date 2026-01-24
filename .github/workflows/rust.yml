@@ -5,64 +5,55 @@ on:
   push:
     branches: [ master, main ]
 
+env:
+  CARGO_TERM_COLOR: always
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
 jobs:
   build-windows:
     runs-on: windows-2022
     
     steps:
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+          
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: x86_64-pc-windows-msvc
     
-    - name: Install LLVM
+    - name: Setup vcpkg with caching
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgDirectory: C:\vcpkg
+        vcpkgGitCommitId: 'f7423ee180c4b7f40d43402c2feb3859161ef625'
+        
+    - name: Install vcpkg dependencies
+      run: |
+        $ErrorActionPreference = "Stop"
+        C:\vcpkg\vcpkg.exe install --triplet x64-windows-static libvpx libyuv opus aom
+        
+    - name: Install LLVM and Clang
       run: |
         choco install llvm -y
         
-    - name: Install NASM
-      run: |
-        choco install nasm -y
-        
-    - name: Setup VCPKG
-      run: |
-        git clone https://github.com/microsoft/vcpkg C:\vcpkg
-        C:\vcpkg\bootstrap-vcpkg.bat
-        echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
-        
-    - name: Cache VCPKG packages
-      uses: actions/cache@v3
-      with:
-        path: C:\vcpkg\installed
-        key: vcpkg-${{ runner.os }}-${{ hashFiles('**/vcpkg.json') }}
-        
-    - name: Install VCPKG dependencies
-      run: |
-        C:\vcpkg\vcpkg install opus:x64-windows-static
-        C:\vcpkg\vcpkg install libvpx:x64-windows-static
-        C:\vcpkg\vcpkg install libyuv:x64-windows-static
-        C:\vcpkg\vcpkg install aom:x64-windows-static
-        C:\vcpkg\vcpkg integrate install
-      env:
-        VCPKG_DEFAULT_TRIPLET: x64-windows-static
-        
-    - name: Build RustDesk
+    - name: Build
       run: |
         $env:VCPKG_ROOT = "C:\vcpkg"
-        cargo build --release --target x86_64-pc-windows-msvc --features inline
+        python3 res/inline-sciter.py
+        cargo build --release --target x86_64-pc-windows-msvc
       env:
-        VCPKG_DEFAULT_TRIPLET: x64-windows-static
-        LIBCLANG_PATH: C:\Program Files\LLVM\bin
-    
+        VCPKG_ROOT: C:\vcpkg
+        
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
