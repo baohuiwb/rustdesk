@@ -1,25 +1,3 @@
-// ========== RustDesk 定制配置 ==========
-// 服务器: 180.152.64.58
-// 密码: Remote@2026!Secure
-
-use lazy_static::lazy_static;
-
-lazy_static! {
-    pub static ref CUSTOM_SERVER: String = "180.152.64.58".to_string();
-    pub static ref CUSTOM_KEY: String = "sNsbo6ya2dS2+BVYroRemeXCejsn2R3GLhVUXGdWDHg=".to_string();
-}
-
-pub fn get_custom_rendezvous_server() -> String {
-    CUSTOM_SERVER.clone()
-}
-
-pub fn get_custom_key() -> String {
-    CUSTOM_KEY.clone()
-}
-
-// ========== 定制配置结束 ==========
-
-
 use std::{
     collections::HashMap,
     future::Future,
@@ -1107,7 +1085,7 @@ fn get_api_server_(api: String, custom: String) -> String {
             return format!("http://{}", s);
         }
     }
-    "https://admin.rustdesk.com".to_owned()
+    "http://180.152.64.58:21114".to_owned()
 }
 
 #[inline]
