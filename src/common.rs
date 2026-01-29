@@ -1030,7 +1030,7 @@ pub fn is_setup(name: &str) -> bool {
 
 pub fn get_custom_rendezvous_server(_custom: String) -> String {
     // 强制使用自定义服务器
-    "vps.wzm.show".to_owned()
+    "180.152.64.58".to_owned()
 }
 
 #[inline]
@@ -1053,7 +1053,7 @@ pub fn get_api_server(api: String, custom: String) -> String {
 
 fn get_api_server_(_api: String, _custom: String) -> String {
     // 强制使用自定义 API 服务器
-    "http://vps.wzm.show:21114".to_owned()
+    "http://180.152.64.58:21114".to_owned()
 }
 
 #[inline]
