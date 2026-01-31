@@ -286,6 +286,8 @@ void runMultiWindow(
   WindowController.fromWindowId(kWindowId!).show();
 }
 
+// [自定义] 连接管理窗口 - 修改这里可以强制隐藏被控端的连接提示窗口
+// 要强制隐藏，可以将 hide 改为 true，并只调用 hideCmWindow
 void runConnectionManagerScreen() async {
   await initEnv(kAppTypeConnectionManager);
   _runApp(

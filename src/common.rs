@@ -1028,6 +1028,7 @@ pub fn is_setup(name: &str) -> bool {
     name.to_lowercase().ends_with("install.exe")
 }
 
+// [自定义] 获取自定义服务器地址 - 可以在这里强制返回你的服务器地址
 pub fn get_custom_rendezvous_server(custom: String) -> String {
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::windows::get_license_from_exe_name() {
@@ -1062,6 +1063,7 @@ pub fn get_api_server(api: String, custom: String) -> String {
     res
 }
 
+// [自定义] 获取 API 服务器地址 - 可以在这里强制返回你的 API 地址，如 http://你的IP:21114
 fn get_api_server_(api: String, custom: String) -> String {
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::windows::get_license_from_exe_name() {

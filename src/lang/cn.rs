@@ -1,8 +1,11 @@
+// [自定义] 中文翻译文件 - 修改这里可以自定义 UI 显示的文字
 lazy_static::lazy_static! {
 pub static ref T: std::collections::HashMap<&'static str, &'static str> =
     [
         ("Status", "状态"),
+        // [自定义] 主界面标题文字
         ("Your Desktop", "你的桌面"),
+        // [自定义] 主界面提示文字
         ("desk_tip", "你的桌面可以通过下面的 ID 和密码访问。"),
         ("Password", "密码"),
         ("Ready", "就绪"),
